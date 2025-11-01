@@ -449,6 +449,17 @@ FUNC_INLINE int arg_idx(int index)
 	return config->idx[index];
 }
 
+FUNC_INLINE long get_pt_regs_arg(struct pt_regs *ctx, struct config_reg_arg *reg)
+{
+	__u8 shift = 64 - reg->size*8;
+	unsigned long *val;
+
+	val = (unsigned long *) ctx + (reg->offset / sizeof(unsigned long));
+	*val <<= shift;
+	*val >>= shift;
+	return *val;
+}
+
 FUNC_INLINE long generic_read_arg(void *ctx, int index, long off, struct bpf_map_def *tailcals)
 {
 	struct msg_generic_kprobe *e;
@@ -483,9 +494,12 @@ FUNC_INLINE long generic_read_arg(void *ctx, int index, long off, struct bpf_map
 	/* Getting argument data based on the source attribute, which is encoded
 	 * in argument meta data, so far it's either:
 	 *
+	 *   - pt_regs register
 	 *   - current task object
 	 *   - real argument value
 	 */
+	if (am & ARGM_PT_REGS)
+		a = get_pt_regs_arg(ctx, &config->reg_arg[arg_index]);
 	if (am & ARGM_CURRENT_TASK)
 		a = get_current_task();
 	else

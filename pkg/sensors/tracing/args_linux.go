@@ -35,6 +35,7 @@ const (
 	argReturnCopyBit  = 1 << 4
 	argMaxDataBit     = 1 << 5
 	argCurrentTaskBit = 1 << 6
+	argPtRegsBit      = 1 << 7
 )
 
 func argReturnCopy(meta int) bool {
@@ -64,6 +65,9 @@ func getMetaValue(arg *v1alpha1.KProbeArg) (int, error) {
 		meta = meta | argMaxDataBit
 	}
 	if hasCurrentTaskSource(arg) {
+		meta = meta | argCurrentTaskBit
+	}
+	if hasPtRegsSource(arg) {
 		meta = meta | argCurrentTaskBit
 	}
 	return meta, nil

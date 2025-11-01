@@ -25,6 +25,7 @@ import (
 	"github.com/cilium/tetragon/pkg/api/processapi"
 	api "github.com/cilium/tetragon/pkg/api/tracingapi"
 	"github.com/cilium/tetragon/pkg/arch"
+	"github.com/cilium/tetragon/pkg/asm"
 	"github.com/cilium/tetragon/pkg/bpf"
 	"github.com/cilium/tetragon/pkg/btf"
 	"github.com/cilium/tetragon/pkg/cgtracker"
@@ -792,7 +793,17 @@ func addKprobe(funcName string, instance int, f *v1alpha1.KProbeSpec, in *addKpr
 			argType = gt.GenericTypeFromString(a.Type)
 		}
 
-		if a.Resolve != "" && j < api.EventConfigMaxArgs {
+		var (
+			regArg api.ConfigRegArg
+			ok     bool
+		)
+
+		if hasPtRegsSource(a) {
+			regArg.Offset, regArg.Size, ok = asm.RegOffsetSize(a.Resolve)
+			if !ok {
+				return fmt.Errorf("error: Failed to retrieve register argument '%s'", a.Resolve)
+			}
+		} else if a.Resolve != "" && j < api.EventConfigMaxArgs {
 			if !bpf.HasProgramLargeSize() {
 				return errors.New("error: Resolve flag can't be used for your kernel version. Please update to version 5.4 or higher or disable Resolve flag")
 			}
@@ -831,6 +842,7 @@ func addKprobe(funcName string, instance int, f *v1alpha1.KProbeSpec, in *addKpr
 		eventConfig.ArgType[j] = int32(argType)
 		eventConfig.ArgMeta[j] = uint32(argMValue)
 		eventConfig.ArgIndex[j] = int32(a.Index)
+		eventConfig.RegArg[j] = regArg
 
 		argP := argPrinter{
 			index:    int(a.Index),
